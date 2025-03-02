@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quran Juz Flashcard Game</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Changed to min-height for better scrolling */
+            margin: 0;
+            padding: 10px; /* Added padding for edge spacing */
+            box-sizing: border-box;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px; /* Reduced padding for smaller screens */
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+            animation: fadeIn 1s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        h1 {
+            color: #1e3c72;
+            font-size: clamp(1.5em, 5vw, 2em); /* Responsive font size */
+            margin-bottom: 15px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .flashcard {
+            background: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+            min-height: 100px; /* Reduced for smaller screens */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(1em, 4vw, 1.5em); /* Responsive Arabic text size */
+            color: #333;
+            direction: rtl;
+            transition: transform 0.3s;
+            word-wrap: break-word; /* Prevent overflow */
+        }
+
+        .flashcard:hover {
+            transform: scale(1.02); /* Still works on desktop */
+        }
+
+        .options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); /* Responsive grid */
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 10px;
+            font-size: clamp(0.9em, 3vw, 1em); /* Responsive button text */
+            border: none;
+            border-radius: 5px;
+            background: #2a5298;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.2s;
+            touch-action: manipulation; /* Improves touch responsiveness */
+        }
+
+        button:hover {
+            background: #1e3c72;
+            transform: translateY(-2px); /* Works on desktop */
+        }
+
+        button:active {
+            transform: scale(0.95); /* Feedback for touch */
+        }
+
+        button.correct {
+            background: #28a745;
+            animation: pulse 0.5s;
+        }
+
+        button.wrong {
+            background: #dc3545;
+            animation: shake 0.3s;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+
+        #score {
+            font-size: clamp(1em, 4vw, 1.2em); /* Responsive score text */
+            color: #1e3c72;
+            margin-top: 15px;
+        }
+
+        #next-btn {
+            background: #ff9800;
+            margin-top: 15px;
+            width: 100%; /* Full width on mobile */
+            max-width: 200px; /* Limit width on larger screens */
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #next-btn:hover {
+            background: #e68a00;
+        }
+
+        .loading {
+            font-size: clamp(1em, 4vw, 1.2em);
+            color: #666;
+        }
+
+        /* Media query for smaller screens */
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+            .flashcard {
+                padding: 10px;
+                min-height: 80px;
+            }
+            .options {
+                gap: 8px;
+            }
+            button {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>IssyDees Quran Flash Card Game</h1>
+        <div id="flashcard" class="flashcard">Loading Ayat...</div>
+        <div id="options" class="options"></div>
+        <div id="score">Score: 0</div>
+        <button id="next-btn" style="display: none;">Next Ayat</button>
+    </div>
+
+    <script>
+        const flashcard = document.getElementById('flashcard');
+        const optionsDiv = document.getElementById('options');
+        const scoreDisplay = document.getElementById('score');
+        const nextBtn = document.getElementById('next-btn');
+        let score = 0;
+        let correctJuz;
+
+        // Function to fetch a random ayat
+        async function fetchRandomAyat() {
+            flashcard.innerHTML = 'Loading Ayat...';
+            optionsDiv.innerHTML = '';
+            nextBtn.style.display = 'none';
+
+            try {
+                const response = await fetch('http://api.alquran.cloud/v1/ayah/' + Math.floor(Math.random() * 6236));
+                const data = await response.json();
+                const ayat = data.data;
+                flashcard.innerHTML = ayat.text; // Only display Arabic text
+                correctJuz = ayat.juz;
+                displayOptions(correctJuz);
+            } catch (error) {
+                flashcard.innerHTML = 'Failed to load Ayat. Try again!';
+                console.error(error);
+            }
+        }
+
+        // Function to display multiple-choice options
+        function displayOptions(correctJuz) {
+            const options = [];
+            options.push(correctJuz); // Add correct answer
+
+            // Add 3 random incorrect options
+            while (options.length < 4) {
+                const randomJuz = Math.floor(Math.random() * 30) + 1;
+                if (!options.includes(randomJuz)) options.push(randomJuz);
+            }
+
+            // Shuffle options
+            options.sort(() => Math.random() - 0.5);
+
+            // Create buttons for each option
+            options.forEach(juz => {
+                const btn = document.createElement('button');
+                btn.textContent = `Juz ${juz}`;
+                btn.onclick = () => checkAnswer(juz, correctJuz, btn);
+                optionsDiv.appendChild(btn);
+            });
+        }
+
+        // Function to check the user's answer
+        function checkAnswer(selectedJuz, correctJuz, button) {
+            const buttons = optionsDiv.querySelectorAll('button');
+            buttons.forEach(btn => btn.disabled = true); // Disable all buttons
+
+            if (selectedJuz === correctJuz) {
+                button.classList.add('correct');
+                score += 10;
+                scoreDisplay.textContent = `Score: ${score}`;
+            } else {
+                button.classList.add('wrong');
+                buttons.forEach(btn => {
+                    if (parseInt(btn.textContent.split(' ')[1]) === correctJuz) {
+                        btn.classList.add('correct');
+                    }
+                });
+            }
+
+            nextBtn.style.display = 'block';
+        }
+
+        // Event listener for the "Next Ayat" button
+        nextBtn.onclick = () => {
+            fetchRandomAyat();
+        };
+
+        // Start the game
+        fetchRandomAyat();
+    </script>
+</body>
+</html>
